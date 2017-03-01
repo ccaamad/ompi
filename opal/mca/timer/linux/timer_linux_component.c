@@ -159,8 +159,8 @@ int opal_timer_linux_open(void)
 {
     int ret = OPAL_SUCCESS;
 
-    if (mca_timer_base_monotonic && !opal_sys_timer_is_monotonic ()) {
-#if OPAL_HAVE_CLOCK_GETTIME && (0 == OPAL_TIMER_MONOTONIC)
+    if(mca_timer_base_monotonic) {
+#if OPAL_HAVE_CLOCK_GETTIME
         struct timespec res;
         if( 0 == clock_getres(CLOCK_MONOTONIC, &res)) {
             opal_timer_linux_freq = 1.e3;
@@ -169,9 +169,11 @@ int opal_timer_linux_open(void)
             return ret;
         }
 #else
+#if (0 == OPAL_TIMER_MONOTONIC)
         /* Monotonic time requested but cannot be found. Complain! */
-        opal_show_help("help-opal-timer-linux.txt", "monotonic not supported", true);
-#endif  /* OPAL_HAVE_CLOCK_GETTIME && (0 == OPAL_TIMER_MONOTONIC) */
+        opal_show_help("help-opal-timer-linux.txt", "monotonic not supported", 1);
+#endif  /* (0 == OPAL_TIMER_MONOTONIC) */
+#endif
     }
     ret = opal_timer_linux_find_freq();
     opal_timer_base_get_cycles = opal_timer_base_get_cycles_sys_timer;
@@ -182,20 +184,22 @@ int opal_timer_linux_open(void)
 #if OPAL_HAVE_CLOCK_GETTIME
 opal_timer_t opal_timer_base_get_usec_clock_gettime(void)
 {
-    struct timespec tp = {.tv_sec = 0, .tv_nsec = 0};
+    struct timespec tp;
 
-    (void) clock_gettime (CLOCK_MONOTONIC, &tp);
-
-    return (tp.tv_sec * 1e6 + tp.tv_nsec/1000);
+    if( 0 == clock_gettime(CLOCK_MONOTONIC, &tp) ) {
+        return (tp.tv_sec * 1e6 + tp.tv_nsec/1000);
+    }
+    return 0;
 }
 
 opal_timer_t opal_timer_base_get_cycles_clock_gettime(void)
 {
-    struct timespec tp = {.tv_sec = 0, .tv_nsec = 0};
+    struct timespec tp;
 
-    (void) clock_gettime(CLOCK_MONOTONIC, &tp);
-
-    return (tp.tv_sec * 1e9 + tp.tv_nsec);
+    if( 0 == clock_gettime(CLOCK_MONOTONIC, &tp) ) {
+        return (tp.tv_sec * 1e9 + tp.tv_nsec);
+    }
+    return 0;
 }
 #endif  /* OPAL_HAVE_CLOCK_GETTIME */
 
